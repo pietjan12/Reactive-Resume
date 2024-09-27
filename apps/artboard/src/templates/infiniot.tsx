@@ -17,56 +17,64 @@ import {
   URL,
   Volunteer,
 } from "@reactive-resume/schema";
-import { cn, isEmptyString, isUrl } from "@reactive-resume/utils";
+import { cn, hexToRgb, isEmptyString, isUrl, linearTransform } from "@reactive-resume/utils";
 import get from "lodash.get";
 import { Fragment } from "react";
 
 import { Picture } from "../components/picture";
 import { useArtboardStore } from "../store/artboard";
 import { TemplateProps } from "../types/template";
+import { color } from "framer-motion";
 
 const Header = () => {
   const basics = useArtboardStore((state) => state.resume.basics);
 
   return (
-    <div className="flex flex-col items-center space-y-2 text-center">
+    <div className="flex flex-col items-center space-y-4 text-center">
       <Picture />
+      <div className="space-y-4">
+        <div>
+          <div className="text-2xl font-bold">{basics.name}</div>
+          <div className="text-base">{basics.headline}</div>
+        </div>
 
-      <div>
-        <div className="text-2xl font-bold">{basics.name}</div>
-        <div className="text-base">{basics.headline}</div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
-        {basics.location && (
-          <div className="flex items-center gap-x-1.5">
-            <i className="ph ph-bold ph-map-pin text-primary" />
-            <div>{basics.location}</div>
-          </div>
-        )}
-        {basics.phone && (
-          <div className="flex items-center gap-x-1.5">
-            <i className="ph ph-bold ph-phone text-primary" />
-            <a href={`tel:${basics.phone}`} target="_blank" rel="noreferrer">
-              {basics.phone}
-            </a>
-          </div>
-        )}
-        {basics.email && (
-          <div className="flex items-center gap-x-1.5">
-            <i className="ph ph-bold ph-at text-primary" />
-            <a href={`mailto:${basics.email}`} target="_blank" rel="noreferrer">
-              {basics.email}
-            </a>
-          </div>
-        )}
-        <Link url={basics.url} />
-        {basics.customFields.map((item) => (
-          <div key={item.id} className="flex items-center gap-x-1.5">
-            <i className={cn(`ph ph-bold ph-${item.icon}`, "text-primary")} />
-            <span>{[item.name, item.value].filter(Boolean).join(": ")}</span>
-          </div>
-        ))}
+        <div className="flex flex-col items-start gap-y-1.5 rounded text-left text-sm">
+          {basics.location && (
+            <div className="flex">
+              <i className="ph ph-bold ph-map-pin text-primary" />
+              <div>{basics.location}</div>
+            </div>
+          )}
+          {basics.phone && (
+            <div className="flex">
+              <i className="ph ph-bold ph-phone text-primary" />
+              <a href={`tel:${basics.phone}`} target="_blank" rel="noreferrer">
+                {basics.phone}
+              </a>
+            </div>
+          )}
+          {basics.email && (
+            <div className="flex">
+              <i className="ph ph-bold ph-at text-primary" />
+              <a href={`mailto:${basics.email}`} target="_blank" rel="noreferrer">
+                {basics.email}
+              </a>
+            </div>
+          )}
+          <Link url={basics.url} />
+          {basics.customFields.map((item) => (
+            <div key={item.id} className="flex">
+              <i className={cn(`ph ph-bold ph-${item.icon} text-primary`)} />
+              {isUrl(item.value) ? (
+                <a href={item.value} target="_blank" rel="noreferrer noopener nofollow">
+                  {item.name || item.value}
+                </a>
+              ) : (
+                <span style={{fontSize: "1rem"}}>{[item.name, item.value].filter(Boolean).join(": ")}</span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -78,14 +86,12 @@ const Summary = () => {
   if (!section.visible || isEmptyString(section.content)) return null;
 
   return (
-    <section id={section.id} className="grid grid-cols-5 border-t pt-2.5">
-      <div>
-        <h4 className="text-base font-bold">{section.name}</h4>
-      </div>
+    <section id={section.id}>
+      <h4 className="mb-2 border-b pb-0.5 text-sm font-bold">{section.name}</h4>
 
       <div
         dangerouslySetInnerHTML={{ __html: section.content }}
-        className="wysiwyg col-span-4"
+        className="wysiwyg"
         style={{ columns: section.columns }}
       />
     </section>
@@ -94,16 +100,22 @@ const Summary = () => {
 
 type RatingProps = { level: number };
 
-const Rating = ({ level }: RatingProps) => (
-  <div className="flex items-center gap-x-1.5">
-    {Array.from({ length: 5 }).map((_, index) => (
+const Rating = ({ level }: RatingProps) => {
+  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
+
+  return (
+    <div className="relative">
       <div
-        key={index}
-        className={cn("size-2 rounded-full border border-primary", level > index && "bg-primary")}
+        className="h-2.5 w-full rounded-sm"
+        style={{ backgroundColor: hexToRgb(primaryColor, 0.4) }}
       />
-    ))}
-  </div>
-);
+      <div
+        className="absolute inset-y-0 left-0 h-2.5 w-full rounded-sm bg-primary"
+        style={{ width: `${linearTransform(level, 0, 5, 0, 100)}%` }}
+      />
+    </div>
+  );
+};
 
 type LinkProps = {
   url: URL;
@@ -118,7 +130,8 @@ const Link = ({ url, icon, iconOnRight, label, className }: LinkProps) => {
 
   return (
     <div className="flex items-center gap-x-1.5">
-      {!iconOnRight && (icon ?? <i className="ph ph-bold ph-link text-primary" />)}
+      {!iconOnRight &&
+        (icon ?? <i className="ph ph-bold ph-link text-primary group-[.sidebar]:text-primary" />)}
       <a
         href={url.href}
         target="_blank"
@@ -127,7 +140,8 @@ const Link = ({ url, icon, iconOnRight, label, className }: LinkProps) => {
       >
         {label ?? (url.label || url.href)}
       </a>
-      {iconOnRight && (icon ?? <i className="ph ph-bold ph-link text-primary" />)}
+      {iconOnRight &&
+        (icon ?? <i className="ph ph-bold ph-link text-primary group-[.sidebar]:text-primary" />)}
     </div>
   );
 };
@@ -144,7 +158,7 @@ const LinkedEntity = ({ name, url, separateLinks, className }: LinkedEntityProps
     <Link
       url={url}
       label={name}
-      icon={<i className="ph ph-bold ph-globe text-primary" />}
+      icon={<i className="ph ph-bold ph-globe text-primary group-[.sidebar]:text-primary" />}
       iconOnRight={true}
       className={className}
     />
@@ -175,13 +189,13 @@ const Section = <T,>({
   if (!section.visible || section.items.length === 0) return null;
 
   return (
-    <section id={section.id} className="grid grid-cols-5 border-t pt-2.5">
-      <div>
-        <h4 className="text-base font-bold">{section.name}</h4>
-      </div>
+    <section id={section.id} className="grid">
+      <h4 className="mb-2 border-b pb-0.5 text-sm font-bold group-[.sidebar]:text-primary">
+        {section.name}
+      </h4>
 
       <div
-        className="col-span-4 grid gap-x-6 gap-y-3"
+        className="grid gap-x-6 gap-y-3"
         style={{ gridTemplateColumns: `repeat(${section.columns}, 1fr)` }}
       >
         {section.items
@@ -213,6 +227,61 @@ const Section = <T,>({
           })}
       </div>
     </section>
+  );
+};
+
+const Experience = () => {
+  const section = useArtboardStore((state) => state.resume.sections.experience);
+
+  return (
+    <Section<Experience> section={section} urlKey="url" summaryKey="summary">
+      {(item) => (
+        <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
+          <div className="text-left">
+            <LinkedEntity
+              name={item.company}
+              url={item.url}
+              separateLinks={section.separateLinks}
+              className="font-bold"
+            />
+            <div>{item.position}</div>
+          </div>
+
+          <div className="shrink-0 text-right">
+            <div className="font-bold">{item.date}</div>
+            <div>{item.location}</div>
+          </div>
+        </div>
+      )}
+    </Section>
+  );
+};
+
+const Education = () => {
+  const section = useArtboardStore((state) => state.resume.sections.education);
+
+  return (
+    <Section<Education> section={section} urlKey="url" summaryKey="summary">
+      {(item) => (
+        <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
+          <div className="text-left">
+            <LinkedEntity
+              name={item.institution}
+              url={item.url}
+              separateLinks={section.separateLinks}
+              className="font-bold"
+            />
+            <div>{item.area}</div>
+            <div>{item.score}</div>
+          </div>
+
+          <div className="shrink-0 text-right">
+            <div className="font-bold">{item.date}</div>
+            <div>{item.studyType}</div>
+          </div>
+        </div>
+      )}
+    </Section>
   );
 };
 
@@ -248,68 +317,13 @@ const Profiles = () => {
   );
 };
 
-const Experience = () => {
-  const section = useArtboardStore((state) => state.resume.sections.experience);
-
-  return (
-    <Section<Experience> section={section} urlKey="url" summaryKey="summary">
-      {(item) => (
-        <div className="flex items-start justify-between">
-          <div className="text-left">
-            <LinkedEntity
-              name={item.company}
-              url={item.url}
-              separateLinks={section.separateLinks}
-              className="font-bold"
-            />
-            <div>{item.position}</div>
-          </div>
-
-          <div className="shrink-0 text-right">
-            <div className="font-bold">{item.date}</div>
-            <div>{item.location}</div>
-          </div>
-        </div>
-      )}
-    </Section>
-  );
-};
-
-const Education = () => {
-  const section = useArtboardStore((state) => state.resume.sections.education);
-
-  return (
-    <Section<Education> section={section} urlKey="url" summaryKey="summary">
-      {(item) => (
-        <div className="flex items-start justify-between">
-          <div className="text-left">
-            <LinkedEntity
-              name={item.institution}
-              url={item.url}
-              separateLinks={section.separateLinks}
-              className="font-bold"
-            />
-            <div>{item.area}</div>
-            <div>{item.score}</div>
-          </div>
-
-          <div className="shrink-0 text-right">
-            <div className="font-bold">{item.date}</div>
-            <div>{item.studyType}</div>
-          </div>
-        </div>
-      )}
-    </Section>
-  );
-};
-
 const Awards = () => {
   const section = useArtboardStore((state) => state.resume.sections.awards);
 
   return (
     <Section<Award> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
           <div className="text-left">
             <div className="font-bold">{item.title}</div>
             <LinkedEntity
@@ -334,7 +348,7 @@ const Certifications = () => {
   return (
     <Section<Certification> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
           <div className="text-left">
             <div className="font-bold">{item.name}</div>
             <LinkedEntity name={item.issuer} url={item.url} separateLinks={section.separateLinks} />
@@ -355,7 +369,7 @@ const Skills = () => {
   return (
     <Section<Skill> section={section} levelKey="level" keywordsKey="keywords">
       {(item) => (
-        <div className="space-y-0.5">
+        <div>
           <div className="font-bold">{item.name}</div>
           <div>{item.description}</div>
         </div>
@@ -380,7 +394,7 @@ const Publications = () => {
   return (
     <Section<Publication> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
           <div className="text-left">
             <LinkedEntity
               name={item.name}
@@ -406,7 +420,7 @@ const Volunteer = () => {
   return (
     <Section<Volunteer> section={section} urlKey="url" summaryKey="summary">
       {(item) => (
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
           <div className="text-left">
             <LinkedEntity
               name={item.organization}
@@ -448,7 +462,7 @@ const Projects = () => {
   return (
     <Section<Project> section={section} urlKey="url" summaryKey="summary" keywordsKey="keywords">
       {(item) => (
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
           <div className="text-left">
             <LinkedEntity
               name={item.name}
@@ -499,7 +513,7 @@ const Custom = ({ id }: { id: string }) => {
       keywordsKey="keywords"
     >
       {(item) => (
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between group-[.sidebar]:flex-col group-[.sidebar]:items-start">
           <div className="text-left">
             <LinkedEntity
               name={item.name}
@@ -569,21 +583,52 @@ const mapSectionToComponent = (section: SectionKey) => {
   }
 };
 
-export const Bronzor = ({ columns, isFirstPage = false }: TemplateProps) => {
+export const Infiniot = ({ columns, isFirstPage = false }: TemplateProps) => {
   const [main, sidebar] = columns;
+  
+  const basics = useArtboardStore((state) => state.resume.basics);
+  const primaryColor = useArtboardStore((state) => state.resume.metadata.theme.primary);
+
+  // Styling for the infiniot watermark at the top of the resume.
+  const logoStyle = {
+    top: "-25px",
+    right: "20px",
+    width: "260px"
+  }
 
   return (
-    <div className="p-custom space-y-4">
-      {isFirstPage && <Header />}
+    <div className="grid min-h-[inherit] grid-cols-3 relative " style={{gridTemplateRows: "repeat(15, minmax(0, 1fr))", overflow:"hidden"}}>
+      <img src={`/infiniot.png`} alt="Infiniot logo" className="rounded-sm absolute" style={logoStyle} />
 
-      <div className="space-y-4">
-        {main.map((section) => (
-          <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
-        ))}
+      <div className="col-span-3" style={{gridRow: "span 2"}}>
+        <p className="font-bold" style={{color: primaryColor, fontSize: "2rem", marginLeft: "15px", marginTop: "30px"}}>Curriculum Vitae</p>
+        <p className="font-light" style={{color: "gray", fontSize: "1.25rem", marginLeft:"20px", marginTop:"-3px"}}>{basics.name}</p>
+      </div>
+
+      <div
+        className="sidebar p-custom group space-y-4"
+        style={{ backgroundColor: primaryColor, gridRow: "span 12", color: "white"}}
+      >
+        {isFirstPage && <Header />}
 
         {sidebar.map((section) => (
           <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
         ))}
+      </div>
+
+      <div className="main p-custom group col-span-2 space-y-4" style={{gridRow: "span 12"}}>
+        {main.map((section) => (
+          <Fragment key={section}>{mapSectionToComponent(section)}</Fragment>
+        ))}
+      </div>
+
+      <div className="footer col-span-3" style={{backgroundColor: primaryColor, paddingTop: "10px", borderTop: ".5rem solid #342d2b", gridRow: "span 1"}}>
+        <p className="text-left text-sm" style={{paddingLeft: "5.6rem"}}>High Tech Campus 10 | Building Mµ | 5656 AE Eindhoven | The Netherlands | +31(0)40 851 64 36</p>
+        <p className="text-left text-sm" style={{color: "white", paddingLeft: "5.6rem", paddingTop: "3px", paddingBottom: "10px"}}>
+          <a className="font-bold" href="mailto:info@infiniot.nl">info@infiniot.nl</a>
+          <span style={{paddingLeft: "3px", paddingRight: "3px"}}>|</span>
+          <a className="font-bold" href="https://www.infiniot.nl">www.infiniot.nl</a>
+        </p>
       </div>
     </div>
   );
