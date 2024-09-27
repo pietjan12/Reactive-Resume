@@ -7,5 +7,8 @@ export const getTemplate = (template: Template) => {
     case "infiniot": {
       return Infiniot;
     }
+    default: {
+      return Infiniot;
+    }
   }
 };
